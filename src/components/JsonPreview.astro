@@ -76,7 +76,7 @@ const { jsonString } = Astro.props;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "gitfolio.json";
+    a.download = "gitprofolio.json";
     a.click();
     URL.revokeObjectURL(url);
   });

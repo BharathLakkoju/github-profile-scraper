@@ -96,8 +96,8 @@ async function complete(prompt: string): Promise<string> {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://gitfolio-extractor.local",
-      "X-Title": "Gitfolio Extractor",
+      "HTTP-Referer": "https://gitprofolio.vercel.app",
+      "X-Title": "Gitprofolio",
     },
     body: JSON.stringify({
       model,
