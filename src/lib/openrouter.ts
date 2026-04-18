@@ -80,17 +80,7 @@ export interface RepoSummary {
 
 // ─── Core fetch ───────────────────────────────────────────────────────────────
 
-async function complete(prompt: string): Promise<string> {
-  const apiKey = import.meta.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new OpenRouterError(
-      0,
-      "OPENROUTER_API_KEY is not set. Add it to your .env file.",
-    );
-  }
-
-  const model = import.meta.env.OPENROUTER_MODEL ?? DEFAULT_MODEL;
-
+async function callModel(model: string, prompt: string, apiKey: string): Promise<string | null> {
   const res = await fetch(`${BASE}/chat/completions`, {
     method: "POST",
     headers: {
@@ -114,22 +104,42 @@ async function complete(prompt: string): Promise<string> {
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new OpenRouterError(
-      res.status,
-      `OpenRouter error ${res.status}: ${text.slice(0, 300)}`,
-    );
+    return null;
   }
 
   const data = (await res.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
   };
   const content = data.choices?.[0]?.message?.content ?? "";
-  // Strip any accidental markdown fences
-  return content
+  const cleaned = content
     .replace(/^```(?:json)?\n?/, "")
     .replace(/\n?```$/, "")
     .trim();
+  return cleaned || null;
+}
+
+async function complete(prompt: string): Promise<string> {
+  const apiKey = import.meta.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new OpenRouterError(
+      0,
+      "OPENROUTER_API_KEY is not set. Add it to your .env file.",
+    );
+  }
+
+  const model = import.meta.env.OPENROUTER_MODEL ?? DEFAULT_MODEL;
+  const fallback = import.meta.env.FALLBACK_OPENROUTER_MODEL;
+
+  const result = await callModel(model, prompt, apiKey);
+  if (result !== null) return result;
+
+  if (fallback && fallback !== model) {
+    const fallbackResult = await callModel(fallback, prompt, apiKey);
+    if (fallbackResult !== null) return fallbackResult;
+    throw new OpenRouterError(502, `Both primary model (${model}) and fallback model (${fallback}) failed to respond.`);
+  }
+
+  throw new OpenRouterError(502, `Primary model (${model}) failed to respond.`);
 }
 
 // ─── Analysis functions ───────────────────────────────────────────────────────
